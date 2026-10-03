@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Mi Tienda TCG</title>
+        <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f9; margin: 0; padding: 20px; }
+        h1 { text-align: center; color: #333; margin-bottom: 25px; }
+        
+        /* 1. DISEÑO DE PESTAÑAS PRINCIPALES (SAGAS) */
+        .seccion-categorias { max-width: 1200px; margin: 0 auto 40px auto; }
+        .titulo-seccion { font-size: 22px; font-weight: bold; color: #222; margin-bottom: 20px; text-align: center; }
+        .grid-categorias { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+        
+        .tarjeta-categoria { 
+            position: relative; height: 160px; border-radius: 12px; overflow: hidden; cursor: pointer; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15); transition: transform 0.2s, opacity 0.2s; background-color: #222;
+            opacity: 0.6; pointer-events: none;
+        }
+        .tarjeta-categoria.lista-para-clic { opacity: 1; pointer-events: auto; }
+        .tarjeta-categoria:hover { transform: translateY(-5px); }
+        
+        .cat-pokemon { background: linear-gradient(135px, #2b2b2b, #111111); border-left: 5px solid #ffcb05; }
+        .cat-yugioh { background: linear-gradient(135px, #3a1a1a, #1a0505); border-left: 5px solid #ff1a1a; }
+        .cat-dragonball { background: linear-gradient(135px, #3a261a, #1a0f05); border-left: 5px solid #ff7b00; }
+        .cat-goddess { background: linear-gradient(135px, #261a3a, #0f051a); border-left: 5px solid #a200ff; }
+        
+        .texto-categoria { position: absolute; bottom: 15px; left: 15px; color: white; font-size: 18px; font-weight: bold; text-shadow: 1px 1px 4px rgba(0,0,0,0.8); }
+        .estado-carga { position: absolute; top: 15px; right: 15px; color: #aaa; font-size: 12px; }
+
+        /* 2. PANTALLA DE SUB-CATEGORÍAS (COLECCIONES) */
+        .zona-colecciones { display: none; max-width: 1200px; margin: 0 auto 30px auto; }
+        .grid-colecciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-top: 15px; }
+        .btn-coleccion { 
+            background: #ffffff; border: 2px solid #ccc; padding: 15px; border-radius: 8px; font-weight: bold; 
+            text-align: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: all 0.2s;
+        }
+        .btn-coleccion:hover { background: #eee; border-color: #333; transform: scale(1.02); }
+
+        /* 3. PANTALLA DE TIENDA (GRID DE CARTAS) */
+        .zona-tienda { display: none; max-width: 1200px; margin: 0 auto; }
+        .btn-volver { background-color: #333; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; margin-bottom: 20px; }
+        .buscador-contenedor { text-align: center; margin-bottom: 20px; }
+        #buscador { padding: 10px; width: 300px; font-size: 16px; border-radius: 5px; border: 1px solid #ccc; }
+        
+        .grid-tienda { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
+        .tarjeta-carta { background: white; border-radius: 10px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; display: flex; flex-direction: column; justify-content: space-between; }
+        .tarjeta-carta img { max-width: 100%; height: auto; border-radius: 5px; margin-bottom: 10px; max-height: 250px; object-fit: contain; }
+        .nombre-carta { font-size: 16px; font-weight: bold; margin-bottom: 10px; color: #222; }
+        .detalles { font-size: 13px; color: #555; margin-bottom: 8px; line-height: 1.4; text-align: left; }
+        .precio { font-size: 18px; font-weight: bold; color: #e63946; margin: 10px 0; }
+        .stock { font-size: 12px; color: #2a9d8f; font-weight: bold; margin-bottom: 10px; }
+        .btn-comprar { background-color: #007bff; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; }
+        .btn-comprar:disabled { background-color: #ccc; cursor: not-allowed; }
+            /* BOTÓN FLOTANTE PARA ABRIR EL CARRITO */
+        .btn-carrito-flotante {
+            position: fixed; bottom: 20px; right: 20px; background-color: #e63946; color: white;
+            border: none; padding: 15px 20px; border-radius: 50px; font-size: 16px; font-weight: bold;
+            cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 1000; display: flex; 
+            align-items: center; gap: 10px; text-decoration: none;
+        }
+
+        </style>
+    </head>
+    <body>
+
+        <h1 style="text-align: center; margin-bottom: 25px;">
+            <a href="#" onclick="irAlInicioTienda(event)" style="color: #333; text-decoration: none; cursor: pointer;">
+                🃏 Mi Tienda de Cartas TCG 🃏
+            </a>
+        </h1>
+        <!-- EL BUSCADOR SE PONE AQUÍ (AFUERA DE LAS PANTALLAS PARA QUE ESTÉ DESDE EL INICIO) -->
+        <div class="buscador-contenedor">
+            </button>
+            <br>
+            <input type="text" id="buscador" placeholder="Buscar por nombre o código...">
+        </div>
+
+
+        <!-- PANTALLA 1: SAGAS PRINCIPALES -->
+        <div id="seccion-inicial" class="seccion-categorias">
+            <div class="titulo-seccion">Cartas y coleccionables de tus sagas favoritas</div>
+            <div class="grid-categorias">
+                <div id="btn-poke" class="tarjeta-categoria cat-pokemon" onclick="filtrarPorSaga('Pokémon')">
+                    <div class="texto-categoria">Pokémon</div>
+                    <div class="estado-carga">Cargando...</div>
+                </div>
+                <div id="btn-yugi" class="tarjeta-categoria cat-yugioh" onclick="filtrarPorSaga('Yu-Gi-Oh')">
+                    <div class="texto-categoria">Yu-Gi-Oh!</div>
+                    <div class="estado-carga">Cargando...</div>
+                </div>
+                <div id="btn-db" class="tarjeta-categoria cat-dragonball" onclick="filtrarPorSaga('Dragon Ball')">
+                    <div class="texto-categoria">Super Dragon Ball HEROES</div>
+                    <div class="estado-carga">Cargando...</div>
+                </div>
+                <div id="btn-god" class="tarjeta-categoria cat-goddess" onclick="filtrarPorSaga('Goddess')">
+                    <div class="texto-categoria">Goddess Story</div>
+                    <div class="estado-carga">Cargando...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PANTALLA 2: SELECCIÓN DE COLECCIÓN -->
+        <div id="seccion-colecciones" class="zona-colecciones">
+            <button class="btn-volver" onclick="volverAlMenuInicial()">⬅ Volver a Sagas</button>
+            <div class="titulo-seccion" id="titulo-juego-seleccionado">Colecciones Disponibles</div>
+            <div id="contenedor-colecciones" class="grid-colecciones"></div>
+        </div>
+    
+
+        <!-- PANTALLA 3: TIENDA / CARTAS DE LA COLECCIÓN -->
+        <div id="seccion-tienda" class="zona-tienda">
+            <button class="btn-volver" onclick="volverAColecciones()">⬅ Volver a Colecciones</button>
+            <div id="contenedor-tienda" class="grid-tienda"></div>
+        
+            <!-- NUEVO: Contenedor para los botones de las páginas -->
+            <div id="paginacion-controles" style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 40px; margin-bottom: 20px;"></div>
+        </div>
+
+        <script>
+function irAlInicioTienda(event) {
+    if (event) event.preventDefault(); // Evita que la página salte bruscamente al inicio
+    
+    // Limpiamos la memoria del historial para que el F5 no lo regrese a la colección
+    localStorage.removeItem("ultimaColeccion");
+    localStorage.removeItem("ultimaSaga");
+    
+    // Forzamos a la página a mostrar las sagas y ocultar las secciones de cartas
+    document.getElementById("seccion-inicial").style.display = "block";
+    if (document.getElementById("seccion-colecciones")) document.getElementById("seccion-colecciones").style.display = "none";
+    if (document.getElementById("seccion-tienda")) document.getElementById("seccion-tienda").style.display = "none";
+    
+    // Limpiamos el buscador por comodidad del usuario
+    if (document.getElementById("buscador")) document.getElementById("buscador").value = "";
+}
+        let todasLasCartas = [];
+        let cartasDeSagaActual = [];
+        let cartasDeColeccionActual = [];
+        let paginaActual = 1; // 👈 NUEVO: Lleva el control de la página activa
+
+        // Lector adaptativo con decodificación UTF-8 directa para corregir tildes
+        fetch("bacserito.csv?v=" + Math.random())
+            .then(res => res.arrayBuffer())
+            .then(buffer => {
+                const decoder = new TextDecoder("utf-8");
+                let texto = decoder.decode(buffer);
+                
+                // Si ves que algunas letras siguen mal, aplicamos corrección de emergencia manual
+                texto = texto.replace(/Ã³/g, "ó").replace(/Ã¡/g, "á").replace(/Ã©/g, "é")
+                             .replace(/Ã­/g, "í").replace(/Ãº/g, "ú").replace(/Ã±/g, "ñ");
+
+                const lineas = texto.split(/\r?\n/).map(l => l.trim()).filter(l => l !== "");
+                if (lineas.length <= 1) return;
+
+                for (let i = 1; i < lineas.length; i++) {
+                    const celdas = lineas[i].split(";").map(v => v.trim().replace(/^"|"\$/g, ''));
+                    if (celdas.length < 2 || !celdas[0]) continue;
+
+                    let linkFoto = "https://placeholder.com";
+                    const celdaConWeb = celdas.find(c => c.toLowerCase().startsWith("http"));
+                    if (celdaConWeb) linkFoto = celdaConWeb;
+
+                    const tieneFalso = celdas.some(c => c.toUpperCase() === "FALSE" || c.toUpperCase() === "FALSO");
+                    const disponibleTexto = tieneFalso ? "FALSE" : "TRUE";
+
+                    todasLasCartas.push({
+                        nombre: celdas[0],
+                        codigo: celdas[1] || "",
+                        rareza: celdas[2] || "",
+                        coleccion: celdas[3] || "General",
+                        edicion: celdas[4] || "",
+                        idioma: celdas[5] || "",
+                        estado: celdas[6] || "",
+                        juego: celdas[7] || "Yu-Gi-Oh",
+                        precio: celdas[8] || "1.00",
+                        cantidad: celdas[9] || "0",
+                        disponibilidad: disponibleTexto,
+                        foto: linkFoto
+                    });
+                }
+
+                                // Activar las pestañas principales al terminar la carga
+                document.querySelectorAll(".tarjeta-categoria").forEach(tarjeta => {
+                    tarjeta.classList.add("lista-para-clic");
+                    const indicador = tarjeta.querySelector(".estado-carga");
+                    if (indicador) indicador.innerText = "Listo";
+                });
+
+                // 🔄 RECUPERACIÓN AUTOMÁTICA DEL CARRITO (AL HACER F5)
+                const carritoCargado = localStorage.getItem("carritoGuardado");
+                if (carritoCargado) {
+                    carrito = JSON.parse(carritoCargado);
+                    actualizarInterfazCarrito(); 
+                }
+
+                // 🔄 RECUPERACIÓN DE LA HISTORIA DE NAVEGACIÓN (AL HACER F5)
+                const ultimaSaga = localStorage.getItem("ultimaSaga");
+                const ultimaColeccion = localStorage.getItem("ultimaColeccion");
+                
+                if (ultimaSaga && ultimaColeccion) {
+                    document.getElementById("seccion-inicial").style.display = "none";
+                    const juegoBuscar = ultimaSaga.toLowerCase().replace(/[^a-z0-9]/g, "");
+                    cartasDeSagaActual = todasLasCartas.filter(c => {
+                        const juegoCarta = String(c.juego || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+                        return juegoCarta.includes(juegoBuscar) || juegoBuscar.includes(juegoCarta);
+                    });
+                    
+                    // Re-abrimos la colección en la que se había quedado el cliente
+                    filtrarPorColeccion(ultimaColeccion);
+                }
+            })
+            .catch(err => console.error("Error cargando base de datos:", err));
+
+        // PASO 1: Filtrar el juego y listar de forma automática sus colecciones únicas
+        function filtrarPorSaga(sagaSeleccionada) {
+            juegoSeleccionadoGlobal = sagaSeleccionada;
+            localStorage.setItem("ultimaSaga", sagaSeleccionada);
+            const juegoBuscar = sagaSeleccionada.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+            cartasDeSagaActual = todasLasCartas.filter(c => {
+                const juegoCarta = String(c.juego || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+                return juegoCarta.includes(juegoBuscar) || juegoBuscar.includes(juegoCarta);
+            });
+
+            document.getElementById("titulo-juego-seleccionado").innerText = `Colecciones de ${sagaSeleccionada}`;
+
+            // Obtener lista limpia sin repetir de las colecciones de este juego
+            const coleccionesUnicas = [...new Set(cartasDeSagaActual.map(c => c.coleccion))].filter(col => col !== "");
+
+            const contenedorCols = document.getElementById("contenedor-colecciones");
+            contenedorCols.innerHTML = "";
+
+            coleccionesUnicas.forEach(col => {
+                const boton = document.createElement("div");
+                boton.className = "btn-coleccion";
+                boton.innerText = col;
+                boton.onclick = () => filtrarPorColeccion(col);
+                contenedorCols.appendChild(boton);
+            });
+
+            // Mover pantalla a vista de colecciones
+            document.getElementById("seccion-inicial").style.display = "none";
+            document.getElementById("seccion-colecciones").style.display = "block";
+            document.getElementById("seccion-tienda").style.display = "none";
+        }
+
+        // PASO 2: Filtrar las cartas que pertenecen a la colección elegida
+                function filtrarPorColeccion(coleccionSeleccionada) {
+            cartasDeColeccionActual = cartasDeSagaActual.filter(c => 
+                String(c.coleccion).toLowerCase().trim() === coleccionSeleccionada.toLowerCase().trim()
+            );
+
+            document.getElementById("seccion-colecciones").style.display = "none";
+            document.getElementById("seccion-tienda").style.display = "block";
+            
+            // 💾 NUEVO: Guarda la colección activa y la página en el navegador
+            localStorage.setItem("ultimaColeccion", coleccionSeleccionada);
+            localStorage.setItem("ultimaSaga", cartasDeColeccionActual[0]?.juego || "");
+            
+            paginaActual = 1; 
+            mostrarCartas(cartasDeColeccionActual);
+        }
+
+        function volverAlMenuInicial() {
+            document.getElementById("seccion-inicial").style.display = "block";
+            document.getElementById("seccion-colecciones").style.display = "none";
+            document.getElementById("seccion-tienda").style.display = "none";
+            document.getElementById("buscador").value = "";
+            localStorage.removeItem("ultimaColeccion");
+            localStorage.removeItem("ultimaSaga");
+        }
+
+        function volverAColecciones() {
+            document.getElementById("seccion-colecciones").style.display = "block";
+            document.getElementById("seccion-tienda").style.display = "none";
+            document.getElementById("buscador").value = "";
+            localStorage.removeItem("ultimaColeccion");
+            // Mantenemos la saga para que sepa a dónde volver
+            if (localStorage.getItem("ultimaSaga")) {
+                filtrarPorSaga(localStorage.getItem("ultimaSaga"));
+            }
+        }
+
+                // Renderizado del catálogo de cartas con paginación inteligente de 32 artículos
+        function mostrarCartas(cartas) {
+            const contenedor = document.getElementById("contenedor-tienda");
+            contenedor.innerHTML = "";
+
+            if (cartas.length === 0) {
+                contenedor.innerHTML = "<p style='grid-column: 1/-1; color: #777; text-align:center; padding: 40px;'>No se encontraron cartas en esta colección.</p>";
+                document.getElementById("paginacion-controles").innerHTML = "";
+                return;
+            }
+
+            const limitePorPagina = 32;
+            const totalPaginas = Math.ceil(cartas.length / limitePorPagina);
+
+            // Si por alguna razón la página actual quedó fuera de rango al buscar, la reiniciamos
+            if (paginaActual > totalPaginas) paginaActual = 1;
+
+            // Calcular matemáticamente los índices de corte para la página actual
+            const indiceInicio = (paginaActual - 1) * limitePorPagina;
+            const indiceFin = indiceInicio + limitePorPagina;
+            const cartasDeEstaPagina = cartas.slice(indiceInicio, indiceFin);
+
+            cartasDeEstaPagina.forEach((carta) => {
+                const disponible = carta.disponibilidad === "TRUE";
+                const precioMostrar = carta.precio === "" || carta.precio === "0" ? "1.00" : carta.precio;
+
+                // Buscamos la posición real de la carta en el arreglo original de la colección activa
+                const indiceReal = cartasDeColeccionActual.findIndex(c => c.codigo === carta.codigo);
+
+                const tarjeta = document.createElement("div");
+                tarjeta.className = "tarjeta-carta";
+                tarjeta.innerHTML = `
+                    <div>
+                        <img src="${carta.foto}" alt="${carta.nombre}">
+                        <div class="nombre-carta">${carta.nombre}</div>
+                        
+                        <div class="detalles" style="margin-top: 10px;">
+                            Colección: <strong>${carta.coleccion}</strong><br>
+                            Código: <strong>${carta.codigo}</strong><br>
+                            Estado: ${carta.estado} | Rareza: ${carta.rareza}<br>
+                            Edición: ${carta.edicion}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="precio">S/. ${precioMostrar}</div>
+                        <div class="stock">📦 Stock: ${carta.cantidad} unids.</div>
+                        <button class="btn-comprar" ${!disponible ? 'disabled' : ''} onclick="agregarAlCarrito(${indiceReal})">
+                            ${disponible ? 'Añadir al Carrito' : 'Agotado'}
+                        </button>
+                    </div>
+                `;
+                contenedor.appendChild(tarjeta);
+            });
+
+            // Construir los botones de navegación inferior
+            construirControlesPaginacion(totalPaginas, cartas);
+        }
+
+        // Función encargada de dibujar los botones 1, 2, 3, >, >> de forma dinámica
+        function construirControlesPaginacion(totalPaginas, cartasCompletas) {
+            const contenedorPag = document.getElementById("paginacion-controles");
+            contenedorPag.innerHTML = "";
+
+            // Si todo cabe en una sola página, no es necesario dibujar los botones
+            if (totalPaginas <= 1) return;
+
+            // Estilo base reutilizable para los botones
+            const estiloBoton = "padding: 8px 14px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; transition: all 0.2s;";
+
+            // Botón Primera Página (<<)
+            const btnPrimera = document.createElement("button");
+            btnPrimera.style.cssText = estiloBoton;
+            btnPrimera.innerText = "«";
+            btnPrimera.disabled = (paginaActual === 1);
+            btnPrimera.onclick = () => { paginaActual = 1; mostrarCartas(cartasCompletas); window.scrollTo(0,0); };
+            contenedorPag.appendChild(btnPrimera);
+
+            // Botón Anterior (<)
+            const btnAnterior = document.createElement("button");
+            btnAnterior.style.cssText = estiloBoton;
+            btnAnterior.innerText = "<";
+            btnAnterior.disabled = (paginaActual === 1);
+            btnAnterior.onclick = () => { paginaActual--; mostrarCartas(cartasCompletas); window.scrollTo(0,0); };
+            contenedorPag.appendChild(btnAnterior);
+
+            // Números de páginas intermedias
+            for (let i = 1; i <= totalPaginas; i++) {
+                const btnNum = document.createElement("button");
+                btnNum.style.cssText = estiloBoton;
+                btnNum.innerText = i;
+                
+                // Si es la página en la que está el usuario, la pintamos de azul destacada
+                if (i === paginaActual) {
+                    btnNum.style.backgroundColor = "#007bff";
+                    btnNum.style.color = "white";
+                    btnNum.style.borderColor = "#007bff";
+                }
+
+                btnNum.onclick = () => { paginaActual = i; mostrarCartas(cartasCompletas); window.scrollTo(0,0); };
+                contenedorPag.appendChild(btnNum);
+            }
+
+            // Botón Siguiente (>)
+            const btnSiguiente = document.createElement("button");
+            btnSiguiente.style.cssText = estiloBoton;
+            btnSiguiente.innerText = ">";
+            btnSiguiente.disabled = (paginaActual === totalPaginas);
+            btnSiguiente.onclick = () => { paginaActual++; mostrarCartas(cartasCompletas); window.scrollTo(0,0); };
+            contenedorPag.appendChild(btnSiguiente);
+
+            // Botón Última Página (>>)
+            const btnUltima = document.createElement("button");
+            btnUltima.style.cssText = estiloBoton;
+            btnUltima.innerText = "»";
+            btnUltima.disabled = (paginaActual === totalPaginas);
+            btnUltima.onclick = () => { paginaActual = totalPaginas; mostrarCartas(cartasCompletas); window.scrollTo(0,0); };
+            contenedorPag.appendChild(btnUltima);
+        }
+        // Renderizado del catálogo con paginación máxima de 32 cartas
+        function mostrarCartas(cartas) {
+            const contenedor = document.getElementById("contenedor-tienda");
+            contenedor.innerHTML = "";
+
+            if (cartas.length === 0) {
+                contenedor.innerHTML = "<p style='grid-column: 1/-1; color: #777; text-align:center; padding: 40px;'>No se encontraron cartas disponibles.</p>";
+                document.getElementById("paginacion-controles").innerHTML = "";
+                return;
+            }
+
+            const limitePorPagina = 32;
+            const totalPaginas = Math.ceil(cartas.length / limitePorPagina);
+
+            if (paginaActual > totalPaginas) paginaActual = 1;
+
+            const indiceInicio = (paginaActual - 1) * limitePorPagina;
+            const indiceFin = indiceInicio + limitePorPagina;
+            const cartasDeEstaPagina = cartas.slice(indiceInicio, indiceFin);
+
+            cartasDeEstaPagina.forEach((carta) => {
+                const disponible = carta.disponibilidad === "TRUE";
+                const precioMostrar = carta.precio === "" || carta.precio === "0" ? "1.00" : carta.precio;
+
+                // Buscamos su índice real e inmutable dentro de la colección activa
+                const indiceReal = cartasDeColeccionActual.findIndex(c => c.codigo === carta.codigo);
+
+                const tarjeta = document.createElement("div");
+                tarjeta.className = "tarjeta-carta";
+                tarjeta.innerHTML = `
+                    <div>
+                        <img src="${carta.foto}" alt="${carta.nombre}">
+                        <div class="nombre-carta">${carta.nombre}</div>
+                        <div class="detalles" style="margin-top: 10px;">
+                            Colección: <strong>${carta.coleccion}</strong><br>
+                            Código: <strong>${carta.codigo}</strong><br>
+                            Estado: ${carta.estado} | Rareza: ${carta.rareza}<br>
+                            Edición: ${carta.edicion}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="precio">S/. ${precioMostrar}</div>
+                        <div class="stock">📦 Stock: ${carta.cantidad} unids.</div>
+                        <button class="btn-comprar" ${!disponible ? 'disabled' : ''} onclick="agregarAlCarrito(${indiceReal})">
+                            ${disponible ? 'Añadir al Carrito' : 'Agotado'}
+                        </button>
+                    </div>
+                `;
+                contenedor.appendChild(tarjeta);
+            });
+
+            // Llama a los controles de las páginas
+            construirControlesPaginacion(totalPaginas, cartas);
+        }
+
+        // LÓGICA DEL BUSCADOR INTEGRADA DESDE EL INICIO (SIN ALTERAR EL FLUJO)
+        document.getElementById("buscador").addEventListener("input", function(e) {
+            const busqueda = e.target.value.toLowerCase().trim();
+            const filtradas = cartasDeColeccionActual.filter(c => 
+                c.nombre.toLowerCase().includes(busqueda) || c.codigo.toLowerCase().includes(busqueda)
+            );
+            
+            paginaActual = 1; // 👈 Agrega esto aquí
+            mostrarCartas(filtradas);
+        });
+
+        // ==========================================
+        // SISTEMA DE CARRITO DE COMPRAS INTEGRADO
+        // ==========================================
+        let carrito = [];
+
+               function agregarAlCarrito(indiceEnColeccion) {
+            const cartaSeleccionada = cartasDeColeccionActual[indiceEnColeccion];
+            const productoExistente = carrito.find(item => item.codigo === cartaSeleccionada.codigo);
+            
+            // Convertimos el stock del CSV a un número entero real para evitar errores de texto
+            const stockRealDisponible = parseInt(String(cartaSeleccionada.cantidad).trim()) || 0;
+
+            if (productoExistente) {
+                // Comparamos número contra número de forma correcta
+                if (productoExistente.cantidadSeleccionada >= stockRealDisponible) {
+                    return;
+                }
+                productoExistente.cantidadSeleccionada++;
+            } else {
+                // Si el stock en el CSV es 0 o viene vacío, ni siquiera dejamos agregar la primera unidad
+                if (stockRealDisponible <= 0) {
+                    return;
+                }
+                carrito.push({
+                    ...cartaSeleccionada,
+                    cantidadSeleccionada: 1
+                });
+            }
+            
+            actualizarInterfazCarrito();
+        }
+       
+        function eliminarDelCarrito(codigo) {
+            carrito = carrito.filter(item => item.codigo !== codigo);
+            actualizarInterfazCarrito();
+        }
+
+        // Vaciar por completo la lista de compras
+        function vaciarCarrito() {
+            if (carrito.length === 0) return;
+            if (confirm("¿Estás seguro de que deseas vaciar todo el carrito?")) {
+                carrito = [];
+                actualizarInterfazCarrito();
+            }
+        }
+
+                // Redibuja los productos en la lista incorporando los botones + y -
+        function actualizarInterfazCarrito() {
+            const contadorContador = document.getElementById('carrito-contador');
+            if (contadorContador) {
+                const totalArticulos = carrito.reduce((suma, item) => suma + item.cantidadSeleccionada, 0);
+                contadorContador.innerText = totalArticulos;
+            }
+            localStorage.setItem("carritoGuardado", JSON.stringify(carrito));
+        }
+                // Función para incrementar o decrementar la cantidad de un artículo en el carrito
+        function cambiarCantidad(codigo, cambio) {
+            const producto = carrito.find(item => item.codigo === codigo);
+            if (!producto) return;
+
+            const stockMaximo = parseInt(String(producto.cantidad).trim()) || 0;
+            const nuevaCantidad = producto.cantidadSeleccionada + cambio;
+
+            if (nuevaCantidad <= 0) {
+                // Si la cantidad llega a 0, removemos el producto por completo
+                eliminarDelCarrito(codigo);
+            } else if (cambio > 0 && nuevaCantidad > stockMaximo) {
+                // Si intenta sumar más de lo que hay disponible en el CSV
+            } else {
+                // Actualiza la cantidad y redibuja la lista del panel
+                producto.cantidadSeleccionada = nuevaCantidad;
+                actualizarInterfazCarrito();
+            }
+        }
+        
+        // Si tienes una función general para regresar al inicio, la llamamos aquí
+        if (typeof volverAlMenuInicial === "function") {
+            volverAlMenuInicial();
+        }
+        </script>
+        <a href="carrito.html" class="btn-carrito-flotante"
+            🛒 Carrito (<span id="carrito-contador">0</span>)
+        </a>
+    </div>
+    </body>
+</html>
